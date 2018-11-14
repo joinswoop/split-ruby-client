@@ -40,12 +40,17 @@ module SplitIoClient
       valid_startup_mode = false
       case SplitIoClient.configuration.mode
       when :consumer
-        valid_startup_mode = true
+        if SplitIoClient.configuration.cache_adapter.is_a? SplitIoClient::Cache::Adapters::RedisAdapter
+          valid_startup_mode = true
+        else
+          SplitIoClient.configuration.logger.error('Consumer mode cannot be used with Memory adapter. ' \
+            'Use Redis adapter instead.')
+        end
       when :standalone
         if SplitIoClient.configuration.cache_adapter.is_a? SplitIoClient::Cache::Adapters::MemoryAdapter
           valid_startup_mode = true
         else
-          SplitIoClient.configuration.logger.error('Standalone mode cannot be used with Redis. ' \
+          SplitIoClient.configuration.logger.error('Standalone mode cannot be used with Redis adapter. ' \
             'Use Memory adapter instead.')
         end
       when :producer
@@ -53,7 +58,7 @@ module SplitIoClient
           'See: https://github.com/splitio/split-synchronizer')
       else
         SplitIoClient.configuration.logger.error('Invalid SDK mode selected. ' \
-          "Valid modes are 'standalone' and 'consumer'")
+          "Valid modes are 'standalone with memory adapter' and 'consumer with redis adapter'")
       end
 
       return valid_startup_mode
