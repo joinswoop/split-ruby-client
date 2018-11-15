@@ -5,13 +5,15 @@ require 'securerandom'
 
 describe SplitIoClient, type: :client do
   RSpec.shared_examples 'engine specs' do |cache_adapter|
+    mode = cache_adapter.equal?(:memory) ? :standalone : :consumer
+
     subject do
       SplitIoClient.configuration = nil
       SplitIoClient::SplitFactory.new('',
                                       logger: Logger.new(log),
                                       cache_adapter: cache_adapter,
                                       redis_namespace: 'test',
-                                      mode: :consumer).client
+                                      mode: mode).client
     end
 
     let(:log) { StringIO.new }
@@ -60,9 +62,9 @@ describe SplitIoClient, type: :client do
 
     context '#get_treatment' do
       before do
-        stub_request(:get, 'https://sdk.split.io/api/splitChanges?since')
+        stub_request(:get, 'https://sdk.split.io/api/splitChanges?since=-1')
           .to_return(status: 200, body: all_keys_matcher_json)
-        subject.instance_variable_get(:@adapter).split_store
+        subject.instance_variable_get(:@splits_repository).add_split(JSON.parse(all_keys_matcher_json, symbolize_names: true)[:splits].first)
       end
 
       it 'saves just one metric to Redis' do
@@ -144,7 +146,7 @@ describe SplitIoClient, type: :client do
         )
       end
     end
-
+  
     context '#get_treatments' do
       before do
         stub_request(:get, 'https://sdk.split.io/api/splitChanges?since=-1')
@@ -187,21 +189,6 @@ describe SplitIoClient, type: :client do
         stub_request(:get, 'https://sdk.split.io/api/splitChanges?since=-1')
           .to_return(status: 200, body: all_keys_matcher_json)
       end
-
-      # context 'producer mode' do
-      #   subject do
-      #     SplitIoClient.configuration = nil
-      #     SplitIoClient::SplitFactory.new('',
-      #                                     logger: Logger.new('/dev/null'),
-      #                                     cache_adapter: cache_adapter,
-      #                                     redis_namespace: 'test',
-      #                                     mode: :producer).client
-      #   end
-      #
-      #   it 'stores splits' do
-      #     expect(subject.instance_variable_get(:@adapter).splits_repository.splits.size).to eq(1)
-      #   end
-      # end
 
       context 'consumer mode' do
         subject do
